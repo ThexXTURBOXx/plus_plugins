@@ -170,11 +170,12 @@ class SharePlusWebPlugin extends SharePlatform {
     try {
       for (final (index, file) in files.indexed) {
         final bytes = await file.readAsBytes();
+        final fileName = await file.name();
 
         final anchor = document.createElement('a') as HTMLAnchorElement
           ..href = Uri.dataFromBytes(bytes).toString()
           ..style.display = 'none'
-          ..download = fileNameOverrides?.elementAt(index) ?? file.name;
+          ..download = fileNameOverrides?.elementAt(index) ?? fileName ?? '';
         document.body!.children.add(anchor);
         anchor.click();
         anchor.remove();
@@ -189,15 +190,16 @@ class SharePlusWebPlugin extends SharePlatform {
 
   static Future<File> _fromXFile(XFile file, {String? nameOverride}) async {
     final bytes = await file.readAsBytes();
+    final fileName = nameOverride ?? await file.name() ?? '';
     return File(
       [bytes.buffer.toJS].toJS,
-      nameOverride ?? file.name,
-      FilePropertyBag()..type = file.mimeType ?? _mimeTypeForPath(file, bytes),
+      fileName,
+      FilePropertyBag()..type = _mimeTypeForPath(fileName, bytes),
     );
   }
 
-  static String _mimeTypeForPath(XFile file, Uint8List bytes) {
-    return lookupMimeType(file.name, headerBytes: bytes) ??
+  static String _mimeTypeForPath(String fileName, Uint8List bytes) {
+    return lookupMimeType(fileName, headerBytes: bytes) ??
         'application/octet-stream';
   }
 }

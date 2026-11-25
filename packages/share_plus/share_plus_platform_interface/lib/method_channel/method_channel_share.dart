@@ -60,7 +60,7 @@ class MethodChannelShare extends SharePlatform {
       assert(filesWithPath.every((element) => element.path.isNotEmpty));
 
       final mimeTypes = filesWithPath
-          .map((e) => e.mimeType ?? _mimeTypeForPath(e.path))
+          .map((e) => _mimeTypeForPath(e.path))
           .toList();
 
       final paths = filesWithPath.map((e) => e.path).toList();
@@ -90,19 +90,26 @@ class MethodChannelShare extends SharePlatform {
   /// then make new file in TemporaryDirectory and return with path
   /// the system will automatically delete files in this
   /// TemporaryDirectory as disk space is needed elsewhere on the device
-  Future<XFile> _getFile(
+  Future<FileSystemXFile> _getFile(
     XFile file, {
     String? tempRoot,
     String? nameOverride,
   }) async {
-    if (file.path.isNotEmpty) {
-      return file;
+    final filePath = file is FileSystemXFile
+        ? file.path
+        : (Uri.tryParse(file.uri)?.isScheme('file') == true
+            ? Uri.parse(file.uri).toFilePath()
+            : '');
+    if (filePath.isNotEmpty) {
+      return file is FileSystemXFile ? file : FileSystemXFile(filePath);
     } else {
       tempRoot ??= (await getTemporaryDirectory()).path;
+      final bytes = await file.readAsBytes();
+      final fileName = await file.name();
       // Method returns null as in v2.0.0
       final extension =
           // ignore: dead_null_aware_expression
-          extensionFromMime(file.mimeType ?? 'octet-stream') ?? 'bin';
+          extensionFromMime(_mimeTypeForPath(fileName ?? '')) ?? 'bin';
 
       //By having a UUID v4 folder wrapping the file
       //This path generation algorithm will not only minimize the risk of name collision but also ensure that the filename
@@ -115,27 +122,28 @@ class MethodChannelShare extends SharePlatform {
 
       // True if filename exists or the filename has a valid extension
       final filenameNotEmptyOrHasValidExt =
-          file.name.isNotEmpty || lookupMimeType(file.name) != null;
+          fileName != null && fileName.isNotEmpty ||
+          (fileName != null && lookupMimeType(fileName) != null);
 
       //Per Issue [#3032](https://github.com/fluttercommunity/plus_plugins/issues/3032): use overridden name when available.
       //Per Issue [#1548](https://github.com/fluttercommunity/plus_plugins/issues/1548): attempt to use XFile.name when available
       final filename =
           nameOverride ??
           (filenameNotEmptyOrHasValidExt
-              ? file.name
+              ? fileName
               : "${const Uuid().v1().substring(10)}.$extension");
 
       final path = "$tempSubfolderPath/$filename";
 
       //Write the file to FS
-      await File(path).writeAsBytes(await file.readAsBytes());
+      await File(path).writeAsBytes(bytes);
 
-      return XFile(path);
+      return FileSystemXFile(path);
     }
   }
 
   /// A wrapper of [MethodChannelShare._getFile] for multiple files.
-  Future<List<XFile>> _getFiles(
+  Future<List<FileSystemXFile>> _getFiles(
     List<XFile> files,
     List<String>? fileNameOverrides,
   ) async {

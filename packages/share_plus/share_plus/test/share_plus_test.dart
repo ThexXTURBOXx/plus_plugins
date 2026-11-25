@@ -1,3 +1,4 @@
+import 'package:cross_file_io/cross_file_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,6 +8,7 @@ void main() {
   late SharePlus sharePlus;
 
   setUp(() {
+    CrossFileIO.registerWith();
     fakePlatform = FakeSharePlatform();
     sharePlus = SharePlus.custom(fakePlatform);
   });
@@ -51,7 +53,7 @@ void main() {
         expect(
           () => sharePlus.share(
             ShareParams(
-              files: [XFile('path')],
+              files: [XFile.fileSystem(path: 'path')],
               fileNameOverrides: ['name1', 'name2'],
             ),
           ),

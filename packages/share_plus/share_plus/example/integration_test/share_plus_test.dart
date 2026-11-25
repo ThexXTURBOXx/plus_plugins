@@ -24,17 +24,16 @@ void main() {
     expect(SharePlus.instance.share(params), isNotNull);
   }, skip: !Platform.isAndroid && !Platform.isIOS);
 
-  testWidgets('Can shareXFile created using File.fromData()', (
+  testWidgets('Can shareXFile created using fileSystem', (
     WidgetTester tester,
   ) async {
     final bytes = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
-    final XFile file = XFile.fromData(
-      bytes,
-      name: 'image.jpg',
-      mimeType: 'image/jpeg',
-    );
+    final tempDir = await Directory.systemTemp.createTemp();
+    final file = File('${tempDir.path}/image.jpg');
+    await file.writeAsBytes(bytes);
+    final XFile xFile = XFile.fileSystem(path: file.path);
 
-    final params = ShareParams(files: [file], text: 'message');
+    final params = ShareParams(files: [xFile], text: 'message', fileNameOverrides: ['image.jpg']);
     expect(SharePlus.instance.share(params), isNotNull);
   });
 }

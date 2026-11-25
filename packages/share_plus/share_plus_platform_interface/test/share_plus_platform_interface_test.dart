@@ -4,6 +4,7 @@
 
 import 'dart:io';
 
+import 'package:cross_file_io/cross_file_io.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
@@ -17,6 +18,7 @@ void main() {
   late SharePlatform sharePlatform;
 
   setUp(() {
+    CrossFileIO.registerWith();
     sharePlatform = SharePlatform();
     mockChannel = MockMethodChannel();
     // Re-pipe to mockito for easier verifies.
@@ -95,7 +97,7 @@ void main() {
     await withFile('tempfile-83649a.png', (File fd) async {
       await sharePlatform.share(
         ShareParams(
-          files: [XFile(fd.path)],
+          files: [XFile.fileSystem(path: fd.path)],
           subject: 'some subject to share',
           text: 'some text to share',
           sharePositionOrigin: const Rect.fromLTWH(1.0, 2.0, 3.0, 4.0),
@@ -119,25 +121,11 @@ void main() {
 
   test('sharing file sets correct mimeType', () async {
     await withFile('tempfile-83649b.png', (File fd) async {
-      await sharePlatform.share(ShareParams(files: [XFile(fd.path)]));
+      await sharePlatform.share(ShareParams(files: [XFile.fileSystem(path: fd.path)]));
       verify(
         mockChannel.invokeMethod<String>('share', <String, dynamic>{
           'paths': [fd.path],
           'mimeTypes': ['image/png'],
-        }),
-      );
-    });
-  });
-
-  test('sharing file sets passed mimeType', () async {
-    await withFile('tempfile-83649c.png', (File fd) async {
-      await sharePlatform.share(
-        ShareParams(files: [XFile(fd.path, mimeType: '*/*')]),
-      );
-      verify(
-        mockChannel.invokeMethod<String>('share', <String, dynamic>{
-          'paths': [fd.path],
-          'mimeTypes': ['*/*'],
         }),
       );
     });
@@ -156,7 +144,7 @@ void main() {
 
     await withFile('tempfile-83649d.png', (File fd) async {
       expect(
-        sharePlatform.share(ShareParams(files: [XFile(fd.path)])),
+        sharePlatform.share(ShareParams(files: [XFile.fileSystem(path: fd.path)])),
         completion(equals(resultUnavailable)),
       );
     });
@@ -194,7 +182,7 @@ void main() {
 
     await withFile('tempfile-83649e.png', (File fd) async {
       final result = await sharePlatform.share(
-        ShareParams(files: [XFile(fd.path)]),
+        ShareParams(files: [XFile.fileSystem(path: fd.path)]),
       );
       verify(
         mockChannel.invokeMethod<String>('share', <String, dynamic>{

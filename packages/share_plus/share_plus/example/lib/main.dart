@@ -4,8 +4,8 @@
 
 // ignore_for_file: public_member_api_docs
 
-import 'dart:convert';
 import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:file_selector/file_selector.dart'
     hide XFile; // hides to test if share_plus exports XFile
 import 'package:flutter/foundation.dart';
@@ -143,9 +143,12 @@ class MyHomePageState extends State<MyHomePage> {
                     acceptedTypeGroups: <XTypeGroup>[typeGroup],
                   );
                   if (file != null) {
+                    final fileName = await file.name();
+                    final filePath =
+                        file is FileSystemXFile ? file.path : file.uri;
                     setState(() {
-                      imagePaths.add(file.path);
-                      imageNames.add(file.name);
+                      imagePaths.add(filePath);
+                      imageNames.add(fileName ?? '');
                     });
                   }
                 } else {
@@ -154,9 +157,14 @@ class MyHomePageState extends State<MyHomePage> {
                     source: ImageSource.gallery,
                   );
                   if (pickedFile != null) {
+                    final fileName = await pickedFile.name();
+                    final filePath =
+                        pickedFile is FileSystemXFile
+                            ? pickedFile.path
+                            : pickedFile.uri;
                     setState(() {
-                      imagePaths.add(pickedFile.path);
-                      imageNames.add(pickedFile.name);
+                      imagePaths.add(filePath);
+                      imageNames.add(fileName ?? '');
                     });
                   }
                 }
@@ -256,7 +264,7 @@ class MyHomePageState extends State<MyHomePage> {
     if (imagePaths.isNotEmpty) {
       final files = <XFile>[];
       for (var i = 0; i < imagePaths.length; i++) {
-        files.add(XFile(imagePaths[i], name: imageNames[i]));
+        files.add(XFile.fileSystem(path: imagePaths[i]));
       }
       shareResult = await SharePlus.instance.share(
         ShareParams(
@@ -264,6 +272,7 @@ class MyHomePageState extends State<MyHomePage> {
           subject: subject.isEmpty ? null : subject,
           title: title.isEmpty ? null : title,
           files: files,
+          fileNameOverrides: imageNames,
           sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
           excludedCupertinoActivities: [CupertinoActivityType.airDrop],
         ),
@@ -298,15 +307,18 @@ class MyHomePageState extends State<MyHomePage> {
     try {
       final data = await rootBundle.load('assets/flutter_logo.png');
       final buffer = data.buffer;
+      final bytes = buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+
+      final tempDir = await Directory.systemTemp.createTemp();
+      final file = File('${tempDir.path}/flutter_logo.png');
+      await file.writeAsBytes(bytes);
+
       final shareResult = await SharePlus.instance.share(
         ShareParams(
           files: [
-            XFile.fromData(
-              buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-              name: 'flutter_logo.png',
-              mimeType: 'image/png',
-            ),
+            XFile.fileSystem(path: file.path),
           ],
+          fileNameOverrides: ['flutter_logo.png'],
           sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
           downloadFallbackEnabled: true,
           excludedCupertinoActivities: excludedCupertinoActivityType,
@@ -323,17 +335,18 @@ class MyHomePageState extends State<MyHomePage> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
+      final tempDir = await Directory.systemTemp.createTemp();
+      final outFileName = fileName.isNotEmpty ? fileName : 'text.txt';
+      final file = File('${tempDir.path}/$outFileName');
+      await file.writeAsString(text);
+
       final shareResult = await SharePlus.instance.share(
         ShareParams(
           files: [
-            XFile.fromData(
-              utf8.encode(text),
-              // name: fileName, // Notice, how setting the name here does not work.
-              mimeType: 'text/plain',
-            ),
+            XFile.fileSystem(path: file.path),
           ],
           sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
-          fileNameOverrides: [fileName],
+          fileNameOverrides: [outFileName],
           downloadFallbackEnabled: true,
           excludedCupertinoActivities: excludedCupertinoActivityType,
         ),
